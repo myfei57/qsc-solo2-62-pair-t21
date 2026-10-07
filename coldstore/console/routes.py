@@ -41,6 +41,7 @@ def route_table() -> list[Route]:
         Route("GET", "/history", "list console events", "history_list"),
         Route("POST", "/history/clear", "clear console events", "history_clear"),
         Route("GET", "/metrics", "console request counters", "metrics"),
+        Route("GET", "/metrics/definitions", "declared metric calibers and sync rules", "metrics_definitions"),
         Route("POST", "/metrics/reset", "reset console request counters", "metrics_reset"),
         Route("POST", "/room/add", "add a cold room", "room_add"),
         Route("POST", "/room/remove", "remove a cold room", "room_remove"),
@@ -125,6 +126,7 @@ def route_table() -> list[Route]:
         Route("POST", "/schedule/plan", "plan defrost order by temperature", "schedule_plan"),
         Route("GET", "/export/audit", "runtime audit trail as CSV", "export_audit"),
         Route("GET", "/export/telemetry", "telemetry counters as CSV", "export_telemetry"),
+        Route("GET", "/export/metrics", "request counters as CSV", "export_metrics"),
         Route("POST", "/cycle", "run a full control cycle", "cycle"),
         Route("POST", "/simulate", "run deterministic simulation ticks", "simulate"),
     ]

@@ -11,7 +11,7 @@ from coldstore.fan import PRIMARY, STANDBY
 from coldstore.load import validate_baseline as validate_load_baseline
 from coldstore.ns import Stage, control_line
 from coldstore.quota import Quota, check_quota, validate_amount
-from coldstore.reporting import audit_export, telemetry_export, to_csv
+from coldstore.reporting import audit_export, metrics_export, telemetry_export, to_csv
 from coldstore.room import validate_zone
 from coldstore.scheduler import validate_threshold as validate_schedule_threshold
 from coldstore.store import export_state
@@ -20,6 +20,7 @@ from coldstore.valve import OPEN, validate_valve
 
 from . import checks, history, ops
 from . import describe as describe_module
+from . import metrics as metrics_module
 from . import simulate as simulate_module
 from . import snapshot as snapshot_module
 from . import telemetry as telemetry_module
@@ -130,6 +131,10 @@ def history_clear(server: "Server", request: Request) -> Response:
 
 def metrics(server: "Server", request: Request) -> Response:
     return json_response(server.metrics.snapshot().as_dict())
+
+
+def metrics_definitions(server: "Server", request: Request) -> Response:
+    return json_response(metrics_module.definitions())
 
 
 def metrics_reset(server: "Server", request: Request) -> Response:
@@ -672,6 +677,11 @@ def export_audit(server: "Server", request: Request) -> Response:
 
 def export_telemetry(server: "Server", request: Request) -> Response:
     columns, rows = telemetry_export(telemetry_module.collect(server.runtime))
+    return csv_response(to_csv(columns, rows))
+
+
+def export_metrics(server: "Server", request: Request) -> Response:
+    columns, rows = metrics_export(server.metrics.snapshot())
     return csv_response(to_csv(columns, rows))
 
 

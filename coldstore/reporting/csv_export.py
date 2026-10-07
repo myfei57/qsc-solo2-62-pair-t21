@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - imported only for type checkers
     from coldstore.audit import Auditor
+    from coldstore.console.metrics import MetricsSnapshot
     from coldstore.console.telemetry import Telemetry
 
 QUOTE_TRIGGERS = (",", '"', "\n")
@@ -40,3 +41,16 @@ def telemetry_export(telemetry: Telemetry) -> tuple[list[str], list[list[object]
     """Columns and rows for the telemetry counters."""
 
     return ["metric", "value"], [[key, value] for key, value in telemetry.as_dict().items()]
+
+
+def metrics_export(snapshot: MetricsSnapshot) -> tuple[list[str], list[list[object]]]:
+    """Columns and rows for the request counters, from the same snapshot as /metrics."""
+
+    rows: list[list[object]] = []
+    for key, value in snapshot.as_dict().items():
+        if isinstance(value, dict):
+            for sub, sub_value in sorted(value.items()):
+                rows.append([f"{key}.{sub}", sub_value])
+        else:
+            rows.append([key, value])
+    return ["metric", "value"], rows

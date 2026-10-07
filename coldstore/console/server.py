@@ -8,7 +8,6 @@ from coldstore.store import Store
 
 from . import handlers
 from .http import Request, RequestError, Response, Router, build_request, error_response
-from .metrics import Metrics
 from .routes import register_routes
 from .runtime import Runtime
 
@@ -19,7 +18,7 @@ class Server:
     def __init__(self, store: Store) -> None:
         self.runtime = Runtime(store)
         self.router = Router()
-        self.metrics = Metrics()
+        self.metrics = self.runtime.metrics
         register_routes(self.router, handlers)
 
     def respond(self, request: Request) -> Response:
@@ -62,6 +61,11 @@ class Server:
         status, headers = response.wsgi()
         start_response(status, headers)
         return [response.body]
+
+    def close(self) -> None:
+        """Flush counters so a shutdown loses nothing already counted."""
+
+        self.runtime.metrics.close()
 
 
 def create_application(store: Store) -> Server:

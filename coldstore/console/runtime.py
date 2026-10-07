@@ -17,6 +17,8 @@ from coldstore.store import Store
 from coldstore.temp import Collector
 from coldstore.valve import SupplyValve
 
+from .metrics import Metrics
+
 
 class Runtime:
     """Owns one instance of each control component for a single store."""
@@ -39,4 +41,5 @@ class Runtime:
         self.load = LoadCalculator(store)
         self.accumulator = Accumulator(store)
         self.auditor = Auditor(store)
+        self.metrics = Metrics(store, self.auditor)
         self.scheduler = Scheduler(store)

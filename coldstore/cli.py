@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import signal
 from socketserver import ThreadingMixIn
 from wsgiref.simple_server import WSGIServer, make_server
 
@@ -19,6 +20,12 @@ class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
     """Serve concurrent control requests from a pool of worker threads."""
 
     daemon_threads = True
+
+
+def _terminate(signum: int, frame: object) -> None:
+    """Turn SIGTERM into a clean shutdown so the final flush still runs."""
+
+    raise KeyboardInterrupt
 
 
 def parse_address(value: str) -> tuple[str, int]:
@@ -43,16 +50,18 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    signal.signal(signal.SIGTERM, _terminate)
     store = Store.open(args.store)
+    application = Server(store)
     try:
         seed_defaults(store)
         host, port = parse_address(args.addr)
-        application = Server(store)
         with make_server(host, port, application, server_class=ThreadingWSGIServer) as httpd:
             LOGGER.info("control console listening on %s:%d", host, port)
             httpd.serve_forever()
     except KeyboardInterrupt:
         LOGGER.info("control console stopped")
     finally:
+        application.close()
         store.close()
     return 0

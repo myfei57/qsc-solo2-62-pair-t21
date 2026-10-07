@@ -37,6 +37,8 @@ class Telemetry:
     quota_value: float
     audit_entries: int
     schedule_due: int
+    requests: int
+    request_errors: int
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -66,6 +68,8 @@ class Telemetry:
             "quota_value": self.quota_value,
             "audit_entries": self.audit_entries,
             "schedule_due": self.schedule_due,
+            "requests": self.requests,
+            "request_errors": self.request_errors,
         }
 
 
@@ -74,6 +78,7 @@ def collect(rt: Runtime) -> Telemetry:
 
     temp = rt.temp.state()
     compressor_state = rt.compressors.state()
+    metrics = rt.metrics.snapshot()
     return Telemetry(
         store_keys=rt.store.count(),
         rooms=rt.rooms.count(),
@@ -101,4 +106,6 @@ def collect(rt: Runtime) -> Telemetry:
         quota_value=rt.accumulator.value(),
         audit_entries=rt.auditor.count(),
         schedule_due=len(rt.scheduler.due(rt.rooms)),
+        requests=metrics.requests,
+        request_errors=metrics.errors,
     )

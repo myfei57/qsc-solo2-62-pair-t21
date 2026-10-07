@@ -17,6 +17,8 @@ from coldstore.store import Store
 from coldstore.temp import Collector
 from coldstore.valve import SupplyValve
 
+from .metrics import Metrics
+
 
 class Runtime:
     """Owns one instance of each control component for a single store."""
@@ -27,6 +29,7 @@ class Runtime:
         evap_fans = FanSet()
         self.store = store
         self.rooms = rooms
+        self.auditor = Auditor(store)
         self.compressors = Bank()
         self.supply = SupplyValve(store)
         self.temp = Collector(store)
@@ -38,5 +41,5 @@ class Runtime:
         self.defrost = Controller(cold_fans, rooms, store)
         self.load = LoadCalculator(store)
         self.accumulator = Accumulator(store)
-        self.auditor = Auditor(store)
         self.scheduler = Scheduler(store)
+        self.metrics = Metrics(store, self.auditor)

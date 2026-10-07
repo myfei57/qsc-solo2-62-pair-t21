@@ -6,6 +6,9 @@ import json
 import tempfile
 import unittest
 
+from coldstore.console import ops as ops_module
+from coldstore.console import telemetry as telemetry_module
+from coldstore.console.metrics import FLUSH_EVERY, METRICS_KEY
 from coldstore.console.routes import route_table
 from coldstore.console.seed import seed_defaults
 from coldstore.console.server import Server
@@ -438,6 +441,74 @@ class ConsoleCase(unittest.TestCase):
         status, body = self.call("POST", "/ops/reset-store", {})
         self.assertEqual(status, 200)
         self.assertEqual(body["keys"], 0)
+
+    def test_metrics_survive_restart(self) -> None:
+        for _ in range(3):
+            self.call("GET", "/health")
+        self.server.runtime.metrics.flush()
+        self.store.close()
+        self.store = Store.open(f"{self._tmp.name}/state.json")
+        self.server = Server(self.store)
+        status, body = self.call("GET", "/metrics")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["requests"], 3)
+        self.assertEqual(body["restored"], 3)
+        status, audit = self.call("GET", "/audit")
+        restored = [entry for entry in audit["entries"] if entry["kind"] == "metrics"]
+        self.assertTrue(restored)
+        self.assertIn("restored requests=3", restored[-1]["detail"])
+
+    def test_metrics_flush_is_rate_limited(self) -> None:
+        self.call("GET", "/health")
+        _, present = self.store.get(METRICS_KEY)
+        self.assertFalse(present)
+        for _ in range(FLUSH_EVERY - 1):
+            self.call("GET", "/health")
+        _, present = self.store.get(METRICS_KEY)
+        self.assertTrue(present)
+
+    def test_ops_telemetry_and_metrics_share_counters(self) -> None:
+        self.call("POST", "/comp/add", {"id": "c1", "stages": 2})
+        self.call("POST", "/comp/start", {"id": "c1"})
+        telemetry = telemetry_module.collect(self.server.runtime)
+        counters = ops_module.collect(self.server.runtime)
+        snapshot = self.server.runtime.metrics.snapshot()
+        self.assertEqual(telemetry.requests, snapshot.requests)
+        self.assertEqual(counters.requests, snapshot.requests)
+        self.assertEqual(counters.request_errors, snapshot.errors)
+        self.assertEqual(counters.compressors_running, telemetry.compressors_running)
+        self.assertEqual(counters.compressors_running, 1)
+        self.assertEqual(counters.supply_open, telemetry.supply_open)
+        status, ops_body = self.call("GET", "/ops")
+        self.assertEqual(ops_body["compressors_running"], 1)
+        self.assertIn("requests", ops_body)
+        status, export = self.call("GET", "/export/telemetry")
+        self.assertIn("requests", export)
+
+    def test_metrics_reset_is_audited_and_durable(self) -> None:
+        self.call("GET", "/health")
+        self.call("POST", "/metrics/reset")
+        status, audit = self.call("GET", "/audit")
+        entries = [entry for entry in audit["entries"] if entry["kind"] == "metrics"]
+        self.assertTrue(entries)
+        self.assertIn("reset before requests=1", entries[-1]["detail"])
+        self.store.close()
+        self.store = Store.open(f"{self._tmp.name}/state.json")
+        self.server = Server(self.store)
+        status, body = self.call("GET", "/metrics")
+        self.assertEqual(body["requests"], 0)
+        self.assertEqual(body["resets"], 1)
+
+    def test_factory_reset_clears_metrics(self) -> None:
+        for _ in range(3):
+            self.call("GET", "/health")
+        status, body = self.call("POST", "/ops/reset-store")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["keys"], 0)
+        _, present = self.store.get(METRICS_KEY)
+        self.assertFalse(present)
+        status, metrics = self.call("GET", "/metrics")
+        self.assertEqual(metrics["requests"], 1)
 
     def test_fan_validation_errors(self) -> None:
         status, error = self.call("POST", "/fan/add", {"id": "f1", "role": "sideways"})

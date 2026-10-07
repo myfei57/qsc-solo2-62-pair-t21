@@ -8,7 +8,6 @@ from coldstore.store import Store
 
 from . import handlers
 from .http import Request, RequestError, Response, Router, build_request, error_response
-from .metrics import Metrics
 from .routes import register_routes
 from .runtime import Runtime
 
@@ -19,12 +18,11 @@ class Server:
     def __init__(self, store: Store) -> None:
         self.runtime = Runtime(store)
         self.router = Router()
-        self.metrics = Metrics()
         register_routes(self.router, handlers)
 
     def respond(self, request: Request) -> Response:
         response = self._route(request)
-        self.metrics.record(request.method, request.path, response.status)
+        self.runtime.metrics.record(request.method, request.path, response.status)
         return response
 
     def _route(self, request: Request) -> Response:

@@ -44,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     store = Store.open(args.store)
+    application: Server | None = None
     try:
         seed_defaults(store)
         host, port = parse_address(args.addr)
@@ -54,5 +55,7 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         LOGGER.info("control console stopped")
     finally:
+        if application is not None:
+            application.runtime.metrics.flush()
         store.close()
     return 0

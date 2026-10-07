@@ -129,11 +129,11 @@ def history_clear(server: "Server", request: Request) -> Response:
 
 
 def metrics(server: "Server", request: Request) -> Response:
-    return json_response(server.metrics.snapshot().as_dict())
+    return json_response(server.runtime.metrics.snapshot().as_dict())
 
 
 def metrics_reset(server: "Server", request: Request) -> Response:
-    server.metrics.reset()
+    server.runtime.metrics.reset()
     return json_response({"reset": True})
 
 
